@@ -1,3 +1,5 @@
+import { io } from '../index'; // exportaremos io
+
 export interface Notification {
     id: string;
     userId: string;
@@ -32,4 +34,8 @@ export function clear(userId: string) {
     for (let i = queue.length - 1; i >= 0; i--) {
         if (queue[i].userId === userId) queue.splice(i, 1);
     }
+}
+
+export function pushRealtime(userId: string, msg: string) {
+    io.to(userId).emit('notification', msg);
 }

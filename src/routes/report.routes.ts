@@ -8,6 +8,74 @@ import { Transaction } from '../entities/Transaction';
 const router = Router();
 const txRepo = () => AppDataSource.getRepository(Transaction);
 
+/**
+ * @swagger
+ * /api/reports/trend:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Obtener tendencia de ingresos y gastos
+ *     description: Retorna la tendencia diaria de ingresos y gastos en un rango de fechas
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de inicio (YYYY-MM-DD)
+ *         example: "2024-01-01"
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de fin (YYYY-MM-DD)
+ *         example: "2024-01-31"
+ *     responses:
+ *       200:
+ *         description: Tendencia obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                     description: Fecha del día
+ *                   income:
+ *                     type: number
+ *                     description: Total de ingresos del día
+ *                   expense:
+ *                     type: number
+ *                     description: Total de gastos del día
+ *             example:
+ *               - date: "2024-01-15"
+ *                 income: 500.00
+ *                 expense: 300.00
+ *               - date: "2024-01-16"
+ *                 income: 0.00
+ *                 expense: 150.00
+ *       400:
+ *         description: Faltan parámetros requeridos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Faltan fechas"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET /api/reports/trend?start=2024-07-01&end=2024-07-31
 router.get('/trend', auth, async (req: AuthRequest, res) => {
     const { start, end } = req.query;
@@ -33,6 +101,70 @@ router.get('/trend', auth, async (req: AuthRequest, res) => {
     res.json(trend);
 });
 
+/**
+ * @swagger
+ * /api/reports/category:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Obtener reporte de gastos por categoría
+ *     description: Retorna el total de gastos agrupado por categoría en un rango de fechas
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de inicio (YYYY-MM-DD)
+ *         example: "2024-01-01"
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de fin (YYYY-MM-DD)
+ *         example: "2024-01-31"
+ *     responses:
+ *       200:
+ *         description: Reporte por categorías obtenido exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   category:
+ *                     type: string
+ *                     description: Nombre de la categoría
+ *                   total:
+ *                     type: number
+ *                     description: Total gastado en la categoría
+ *             example:
+ *               - category: "Comida"
+ *                 total: 800.00
+ *               - category: "Transporte"
+ *                 total: 300.00
+ *               - category: "Entretenimiento"
+ *                 total: 150.00
+ *       400:
+ *         description: Faltan parámetros requeridos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Faltan fechas"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET /api/reports/category?start=2024-07-01&end=2024-07-31
 router.get('/category', auth, async (req: AuthRequest, res) => {
     const { start, end } = req.query;

@@ -8,6 +8,46 @@ const router = Router();
 
 const repo = () => AppDataSource.getRepository(User);
 
+/**
+ * @swagger
+ * /api/users/register:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Registrar un nuevo usuario
+ *     description: Crea una nueva cuenta de usuario y retorna un token JWT
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RegisterRequest'
+ *           example:
+ *             username: "john_doe"
+ *             email: "john@example.com"
+ *             password: "password123"
+ *     responses:
+ *       201:
+ *         description: Usuario registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               message: "Usuario registrado exitosamente"
+ *               token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               user:
+ *                 id: "123e4567-e89b-12d3-a456-426614174000"
+ *                 username: "john_doe"
+ *                 email: "john@example.com"
+ *       400:
+ *         description: Datos inválidos o usuario ya existe
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               message: "El usuario ya existe"
+ */
 // Registro
 router.post("/register", async (req, res) => {
   const { username, password, email } = req.body;
@@ -39,6 +79,53 @@ router.post("/register", async (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/users/login:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Iniciar sesión
+ *     description: Autentica un usuario y retorna un token JWT
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *           example:
+ *             username: "john_doe"
+ *             password: "password123"
+ *     responses:
+ *       200:
+ *         description: Inicio de sesión exitoso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/AuthResponse'
+ *             example:
+ *               message: "Inicio de sesión exitoso"
+ *               token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+ *               user:
+ *                 id: "123e4567-e89b-12d3-a456-426614174000"
+ *                 username: "john_doe"
+ *                 email: "john@example.com"
+ *       400:
+ *         description: Faltan datos requeridos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               message: "Faltan datos requeridos"
+ *       401:
+ *         description: Credenciales inválidas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               message: "Usuario incorrecto"
+ */
 // Login
 router.post("/login", async (req, res) => {
   const { username, password } = req.body;

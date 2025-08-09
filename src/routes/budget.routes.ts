@@ -11,6 +11,55 @@ const router = Router();
 const repo = () => AppDataSource.getRepository(Budget);
 const catRepo = () => AppDataSource.getRepository(Category);
 
+/**
+ * @swagger
+ * /api/budgets:
+ *   post:
+ *     tags: [Budgets]
+ *     summary: Crear un nuevo presupuesto
+ *     description: Crea un presupuesto para una categoría específica
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/BudgetDTO'
+ *           example:
+ *             limit: 500.00
+ *             categoryId: 1
+ *             period: "monthly"
+ *     responses:
+ *       201:
+ *         description: Presupuesto creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Budget'
+ *       400:
+ *         description: Categoría inválida o datos incorrectos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Categoría inválida"
+ *       409:
+ *         description: Ya existe un presupuesto para esta categoría
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Presupuesto ya existe para esta categoría"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // POST /api/budgets
 router.post('/', auth, async (req: AuthRequest, res) => {
     const dto: BudgetDTO = req.body;
@@ -39,6 +88,40 @@ router.post('/', auth, async (req: AuthRequest, res) => {
     res.status(201).json(budget);
 });
 
+/**
+ * @swagger
+ * /api/budgets:
+ *   get:
+ *     tags: [Budgets]
+ *     summary: Obtener presupuestos del usuario
+ *     description: Retorna todos los presupuestos del usuario autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de presupuestos obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Budget'
+ *             example:
+ *               - id: "123e4567-e89b-12d3-a456-426614174000"
+ *                 limit: 500.00
+ *                 period: "monthly"
+ *                 category:
+ *                   id: 1
+ *                   name: "Comida"
+ *                   type: "expense"
+ *                 createdAt: "2024-01-01T00:00:00Z"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET /api/budgets
 router.get('/', auth, async (req: AuthRequest, res) => {
     const budgets = await repo().find({
@@ -50,6 +133,58 @@ router.get('/', auth, async (req: AuthRequest, res) => {
 });
 
 
+/**
+ * @swagger
+ * /api/budgets/{categoryId}/almost:
+ *   get:
+ *     tags: [Budgets]
+ *     summary: Verificar alerta de presupuesto
+ *     description: Verifica si un presupuesto está cerca del límite o lo ha excedido
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: categoryId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la categoría
+ *     responses:
+ *       200:
+ *         description: Estado del presupuesto obtenido exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 alert:
+ *                   type: boolean
+ *                   description: Si hay alerta de presupuesto
+ *                 overspent:
+ *                   type: number
+ *                   description: Cantidad excedida (si aplica)
+ *                 percentage:
+ *                   type: number
+ *                   description: Porcentaje usado del presupuesto
+ *             example:
+ *               alert: true
+ *               overspent: 50.00
+ *               percentage: 110
+ *       404:
+ *         description: Presupuesto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Sin presupuesto"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // GET /api/budgets/:categoryId/almost 
 router.get('/:categoryId/almost', auth, async (req: AuthRequest, res) => {
     const categoryId = Number(req.params.categoryId);
@@ -65,6 +200,66 @@ router.get('/:categoryId/almost', auth, async (req: AuthRequest, res) => {
     res.json(alert);
 });
 
+/**
+ * @swagger
+ * /api/budgets/{id}:
+ *   patch:
+ *     tags: [Budgets]
+ *     summary: Actualizar límite de presupuesto
+ *     description: Actualiza el límite de un presupuesto existente
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del presupuesto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [limit]
+ *             properties:
+ *               limit:
+ *                 type: number
+ *                 format: decimal
+ *                 description: Nuevo límite del presupuesto
+ *           example:
+ *             limit: 750.00
+ *     responses:
+ *       200:
+ *         description: Presupuesto actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Budget'
+ *       400:
+ *         description: Límite inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Límite inválido"
+ *       404:
+ *         description: Presupuesto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Presupuesto no encontrado"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // PATCH /api/budgets/:id
 router.patch('/:id', auth, async (req: AuthRequest, res) => {
     const { limit } = req.body;
@@ -81,6 +276,40 @@ router.patch('/:id', auth, async (req: AuthRequest, res) => {
     res.json(budget);
 });
 
+/**
+ * @swagger
+ * /api/budgets/{id}:
+ *   delete:
+ *     tags: [Budgets]
+ *     summary: Eliminar presupuesto
+ *     description: Elimina un presupuesto existente
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del presupuesto
+ *     responses:
+ *       204:
+ *         description: Presupuesto eliminado exitosamente
+ *       404:
+ *         description: Presupuesto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             example:
+ *               error: "Presupuesto no encontrado"
+ *       401:
+ *         description: Token inválido o no proporcionado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 // DELETE /api/budgets/:id
 router.delete('/:id', auth, async (req: AuthRequest, res) => {
     const result = await repo().delete({

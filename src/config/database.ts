@@ -9,11 +9,11 @@ import { Budget } from "../entities/Budget";
 
 export const AppDataSource = new DataSource({
   type: "postgres",
-  host: "localhost",
-  port: 5432,
-  username: "postgres",
-  password: "root",
-  database: "fin_guardian",
+  host: process.env.DB_HOST || "localhost",
+  port: parseInt(process.env.DB_PORT || "5432"),
+  username: process.env.DB_USERNAME || "postgres",
+  password: process.env.DB_PASSWORD || "root",
+  database: process.env.DB_DATABASE || "fin_guardian",
   synchronize: true,
   logging: true,
   entities: [User, Transaction, Category, SavingsGoal, LifetimeSavings, RecurringTransaction, Budget],

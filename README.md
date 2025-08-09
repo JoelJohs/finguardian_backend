@@ -1,16 +1,282 @@
-# 🛡️ FinGuardian - Servidor Backend
+# 🛡️ FinGuardian - Backend API
 
-## 📋 Estado del Proyecto: ✅ COMPLETADO
+> **Control Financiero Personal** - API REST completa para gestión de finanzas personales
 
-### Proyecto Personal - Control Financiero
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
+[![Express](https://img.shields.io/badge/Express.js-4.x-lightgrey.svg)](https://expressjs.com/)
+[![JWT](https://img.shields.io/badge/JWT-Auth-orange.svg)](https://jwt.io/)
 
-**Tecnologías:** Node.js, TypeScript, TypeORM, PostgreSQL, JWT
+## � Descripción
 
-## 🎯 Objetivo del Proyecto
+FinGuardian es una API REST robusta y completa para control financiero personal que permite a los usuarios gestionar sus transacciones, establecer presupuestos, crear metas de ahorro y generar reportes detallados. Desarrollada con Node.js, TypeScript y PostgreSQL, ofrece un sistema completo de autenticación JWT y documentación Swagger.
 
-✅ **LOGRADO:** Ap## 📊 Funcionalidades de Exportación y Reportesicación completa de gestión financiera personal que ayuda a los usuarios a controlar sus gastos, establecer metas de ahorro y mejorar sus hábitos financieros.
+## 🚀 Características Principales
 
-## 🚀 Características Implementadas
+- **🔐 Autenticación Segura**: Sistema completo con JWT y bcrypt
+- **💰 Gestión de Transacciones**: CRUD completo con filtros y paginación
+- **📊 Dashboard Inteligente**: Resúmenes financieros por períodos
+- **🎯 Metas de Ahorro**: Sistema completo con tracking de progreso
+- **💳 Presupuestos**: Límites por categoría con alertas automáticas
+- **🔄 Transacciones Recurrentes**: Pagos automáticos programados
+- **🔔 Sistema de Notificaciones**: Alertas de presupuesto y metas
+- **📈 Reportes Avanzados**: Tendencias y análisis por categorías
+- **📊 Exportación**: CSV y PDF de transacciones
+- **📚 Documentación Swagger**: API completamente documentada
+
+## 🛠️ Tecnologías
+
+- **Runtime**: Node.js 18+
+- **Lenguaje**: TypeScript
+- **Framework**: Express.js
+- **Base de Datos**: PostgreSQL
+- **ORM**: TypeORM
+- **Autenticación**: JWT (jsonwebtoken)
+- **Seguridad**: bcrypt, helmet, cors
+- **Documentación**: Swagger/OpenAPI 3.0
+- **Testing**: Jest
+- **Utilidades**: date-fns, json2csv, pdfkit
+
+## 📂 Estructura del Proyecto
+
+```
+src/
+├── config/          # Configuración de base de datos
+├── entities/        # Entidades TypeORM
+├── routes/          # Endpoints de la API
+├── services/        # Lógica de negocio
+├── middlewares/     # Middlewares personalizados
+├── dto/             # Data Transfer Objects
+├── utils/           # Utilidades generales
+├── jobs/            # Tareas programadas
+└── docs/            # Documentación Swagger
+```
+
+## 🚀 Instalación y Configuración
+
+### Prerrequisitos
+
+- Node.js 18 o superior
+- PostgreSQL 12 o superior
+- npm o yarn
+
+### Instalación
+
+1. **Clonar el repositorio**
+
+   ```bash
+   git clone https://github.com/JoelJohs/fitguardian_backend.git
+   cd fitguardian_backend
+   ```
+
+2. **Instalar dependencias**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configurar variables de entorno**
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Editar `.env` con tus configuraciones:
+
+   ```env
+   DATABASE_HOST=localhost
+   DATABASE_PORT=5432
+   DATABASE_USERNAME=your_username
+   DATABASE_PASSWORD=your_password
+   DATABASE_NAME=finguardian
+   JWT_SECRET=your_jwt_secret_key
+   PORT=3001
+   ```
+
+4. **Ejecutar migraciones**
+
+   ```bash
+   npm run migration:run
+   ```
+
+5. **Iniciar el servidor**
+
+   ```bash
+   # Desarrollo
+   npm run dev
+
+   # Producción
+   npm run build
+   npm start
+   ```
+
+## � Documentación API
+
+La documentación completa de la API está disponible via Swagger:
+
+- **Local**: http://localhost:3001/docs
+- **Producción**: https://api.finguardian.com/docs
+
+### Endpoints Principales
+
+#### Autenticación
+
+- `POST /api/users/register` - Registro de usuario
+- `POST /api/users/login` - Inicio de sesión
+
+#### Transacciones
+
+- `GET /api/transactions` - Listar transacciones (paginado)
+- `POST /api/transactions` - Crear transacción
+- `GET /api/transactions/:id` - Obtener transacción
+- `PATCH /api/transactions/:id` - Actualizar transacción
+- `DELETE /api/transactions/:id` - Eliminar transacción
+
+#### Presupuestos
+
+- `GET /api/budgets` - Listar presupuestos
+- `POST /api/budgets` - Crear presupuesto
+- `PATCH /api/budgets/:id` - Actualizar presupuesto
+- `DELETE /api/budgets/:id` - Eliminar presupuesto
+
+#### Metas de Ahorro
+
+- `GET /api/savings-goals` - Listar metas
+- `POST /api/savings-goals` - Crear meta
+- `GET /api/savings-goals/:id/progress` - Ver progreso
+- `PATCH /api/savings-goals/:id/deposit` - Realizar depósito
+- `PATCH /api/savings-goals/:id/withdraw` - Realizar retiro
+
+#### Dashboard y Reportes
+
+- `GET /api/dashboard/summary` - Resumen financiero
+- `GET /api/reports/trend` - Tendencias diarias
+- `GET /api/reports/category` - Análisis por categorías
+- `GET /api/export/csv` - Exportar a CSV
+- `GET /api/export/pdf` - Exportar a PDF
+
+## 🧪 Testing
+
+```bash
+# Ejecutar tests
+npm test
+
+# Tests en modo watch
+npm run test:watch
+
+# Coverage
+npm run test:coverage
+```
+
+## 🗄️ Base de Datos
+
+### Entidades Principales
+
+- **User**: Usuarios del sistema
+- **Transaction**: Transacciones financieras
+- **Category**: Categorías de transacciones
+- **Budget**: Presupuestos por categoría
+- **SavingsGoal**: Metas de ahorro
+- **LifetimeSavings**: Historial de ahorros
+- **RecurringTransaction**: Transacciones recurrentes
+
+### Migraciones
+
+```bash
+# Crear nueva migración
+npm run migration:create -- -n NombreMigracion
+
+# Ejecutar migraciones
+npm run migration:run
+
+# Revertir migración
+npm run migration:revert
+```
+
+## 🔧 Scripts Disponibles
+
+- `npm run dev` - Servidor en modo desarrollo
+- `npm run build` - Compilar TypeScript
+- `npm start` - Servidor de producción
+- `npm test` - Ejecutar tests
+- `npm run migration:run` - Ejecutar migraciones
+- `npm run migration:revert` - Revertir migración
+
+## 🔒 Seguridad
+
+- **Autenticación JWT**: Tokens seguros con expiración
+- **Hash de contraseñas**: bcrypt con salt rounds
+- **Middleware de seguridad**: helmet, cors
+- **Validación de datos**: Validación en todos los endpoints
+- **Rate limiting**: Protección contra spam (recomendado para producción)
+
+## 🌐 Despliegue
+
+### Variables de Entorno de Producción
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://user:password@host:port/database
+JWT_SECRET=your_secure_jwt_secret
+PORT=3001
+```
+
+### Docker (Opcional)
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 👤 Autor
+
+**Joel Johns**
+
+- GitHub: [@JoelJohs](https://github.com/JoelJohs)
+- Proyecto: [FinGuardian Backend](https://github.com/JoelJohs/fitguardian_backend)
+
+---
+
+## 📊 Estadísticas del Proyecto
+
+- **Entidades**: 7 entidades principales
+- **Endpoints**: 30+ endpoints documentados
+- **Cobertura**: Sistema completo de gestión financiera
+- **Arquitectura**: Modular y escalable
+- **Documentación**: 100% documentado con Swagger
+
+---
+
+# 📋 Historial de Desarrollo
+
+> Esta sección contiene el registro detallado del proceso de desarrollo del proyecto
+
+## ✅ Estado del Proyecto: COMPLETADO
+
+### Objetivo del Proyecto
+
+**LOGRADO:** Aplicación completa de gestión financiera personal que ayuda a los usuarios a controlar sus gastos, establecer metas de ahorro y mejorar sus hábitos financieros.
+
+## 🚀 Funcionalidades Implementadas
 
 - 🔐 **Autenticación y Seguridad:** JWT, bcrypt, middleware de auth
 - 💰 **Gestión de Transacciones:** CRUD completo con paginación y filtros
@@ -22,8 +288,9 @@
 - 📈 **Ahorros Históricos:** Tracking de ahorros lifetime
 - 📊 **Exportación:** CSV y PDF de transacciones por rangos de fecha
 - 📈 **Reportes Avanzados:** Tendencias diarias y análisis por categorías
+- 📚 **Documentación Swagger:** API completamente documentada
 
-## 📁 Estructura del Proyecto
+## 📁 Arquitectura del Proyecto
 
 ```
 📦 FinGuardian Backend
@@ -51,12 +318,13 @@
 │   ├── 🔧 services/                  # Lógica de negocio
 │   ├── 🔒 middlewares/auth.ts        # Verificación JWT
 │   ├── ⚙️  jobs/recurring.job.ts     # Transacciones automáticas
+│   ├── 📚 docs/swagger.ts            # Configuración Swagger
 │   └── 🛠️  utils/auth.ts             # Utilidades de auth
 ├── 🧪 __tests__/                     # Suite de testing
 └── 📦 Configuración (package.json, tsconfig, etc.)
 ```
 
-## 🚀 Estado de Desarrollo - ✅ COMPLETADO
+## 🏗️ Fases de Desarrollo Completadas
 
 ### ✅ Fase 1: Setup Inicial y Autenticación
 
@@ -145,6 +413,16 @@
 - ✅ **Endpoint /api/reports/category** - Operativo
 - ✅ **Filtrado por rangos de fechas** - Funcionando
 - ✅ **Respuestas JSON estructuradas** - Validado
+
+### ✅ Fase 10: Documentación Swagger
+
+- ✅ **Configuración de Swagger/OpenAPI 3.0** - Implementado
+- ✅ **Documentación completa de todos los endpoints** - Completado
+- ✅ **Esquemas de datos definidos** - Todos los DTOs y entidades
+- ✅ **Ejemplos de requests/responses** - Incluidos
+- ✅ **Autenticación JWT documentada** - Bearer token
+- ✅ **Tags organizados por funcionalidad** - 8 categorías
+- ✅ **Servidor de documentación funcionando** - /docs endpoint
 
 ## � Pendientes Menores (Opcional)
 
@@ -358,8 +636,61 @@ npm test
 - `npm test` - Ejecutar suite de tests
 - `npm run test:watch` - Tests en modo watch
 
+## 🌐 Despliegue
+
+### Variables de Entorno de Producción
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://user:password@host:port/database
+JWT_SECRET=your_secure_jwt_secret
+PORT=3001
+```
+
+### Docker (Opcional)
+
+```dockerfile
+FROM node:18-alpine
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --only=production
+COPY . .
+RUN npm run build
+EXPOSE 3001
+CMD ["npm", "start"]
+```
+
+## 🤝 Contribución
+
+1. Fork el proyecto
+2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
+3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
+4. Push a la rama (`git push origin feature/AmazingFeature`)
+5. Abre un Pull Request
+
+## 📄 Licencia
+
+Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más detalles.
+
+## 👤 Autor
+
+**Joel Johns**
+
+- GitHub: [@JoelJohs](https://github.com/JoelJohs)
+- Proyecto: [FinGuardian Backend](https://github.com/JoelJohs/fitguardian_backend)
+
 ---
 
-**🎉 FinGuardian Backend - Proyecto Completado con Éxito**
+## 📊 Estadísticas del Proyecto
 
-_Una aplicación robusta y completa para la gestión financiera personal._
+- **Entidades**: 7 entidades principales
+- **Endpoints**: 30+ endpoints documentados
+- **Cobertura**: Sistema completo de gestión financiera
+- **Arquitectura**: Modular y escalable
+- **Documentación**: 100% documentado con Swagger
+
+---
+
+# 📋 Historial de Desarrollo
+
+> Esta sección contiene el registro detallado del proceso de desarrollo del proyecto

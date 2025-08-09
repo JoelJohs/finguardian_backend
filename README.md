@@ -1,5 +1,22 @@
 # 🛡️ FinGuardian - Backend API
 
+> **Control Financiero Personal** - API REST para gestión de finanzas personales
+
+[![Nod## 📚 Documentación API
+
+La documentación de la API está disponible via Swagger:
+
+- **Local**: http://localhost:3001/docs
+- **Producción**: https://api.finguardian.com/docshttps://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.8+-blue.svg)](https://www.typescriptlang.org/)
+  [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-12+-blue.svg)](https://www.postgresql.org/)
+  [![Express](https://img.shields.io/badge/Express.js-5.x-lightgrey.svg)](https://expressjs.com/)
+  [![JWT](https://img.shields.io/badge/JWT-Auth-orange.svg)](https://jwt.io/)
+
+## 📖 Descripción
+
+FinGuardian es una API REST para control financiero personal que permite gestionar transacciones, establecer presupuestos, crear metas de ahorro y generar reportes. Desarrollada con Node.js, TypeScript y PostgreSQL, incluye autenticación JWT y documentación Swagger.dian - Backend API
+
 > **Control Financiero Personal** - API REST completa para gestión de finanzas personales
 
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
@@ -14,24 +31,24 @@ FinGuardian es una API REST robusta y completa para control financiero personal 
 
 ## 🚀 Características Principales
 
-- **🔐 Autenticación Segura**: Sistema completo con JWT y bcrypt
-- **💰 Gestión de Transacciones**: CRUD completo con filtros y paginación
-- **📊 Dashboard Inteligente**: Resúmenes financieros por períodos
-- **🎯 Metas de Ahorro**: Sistema completo con tracking de progreso
-- **💳 Presupuestos**: Límites por categoría con alertas automáticas
+- **🔐 Autenticación**: Sistema con JWT y bcrypt
+- **💰 Gestión de Transacciones**: CRUD con filtros y paginación
+- **📊 Dashboard**: Resúmenes financieros por períodos
+- **🎯 Metas de Ahorro**: Sistema con tracking de progreso
+- **💳 Presupuestos**: Límites por categoría con alertas
 - **🔄 Transacciones Recurrentes**: Pagos automáticos programados
-- **🔔 Sistema de Notificaciones**: Alertas de presupuesto y metas
-- **📈 Reportes Avanzados**: Tendencias y análisis por categorías
+- **🔔 Notificaciones**: Alertas de presupuesto y metas
+- **📈 Reportes**: Tendencias y análisis por categorías
 - **📊 Exportación**: CSV y PDF de transacciones
-- **📚 Documentación Swagger**: API completamente documentada
+- **📚 Documentación**: API documentada con Swagger
 
 ## 🛠️ Tecnologías
 
 - **Runtime**: Node.js 18+
-- **Lenguaje**: TypeScript
-- **Framework**: Express.js
+- **Lenguaje**: TypeScript 5.8+
+- **Framework**: Express.js 5.x
 - **Base de Datos**: PostgreSQL
-- **ORM**: TypeORM
+- **ORM**: TypeORM 0.3+
 - **Autenticación**: JWT (jsonwebtoken)
 - **Seguridad**: bcrypt, helmet, cors
 - **Documentación**: Swagger/OpenAPI 3.0
@@ -205,11 +222,10 @@ npm run migration:revert
 
 ## 🔒 Seguridad
 
-- **Autenticación JWT**: Tokens seguros con expiración
+- **Autenticación JWT**: Tokens con expiración
 - **Hash de contraseñas**: bcrypt con salt rounds
 - **Middleware de seguridad**: helmet, cors
 - **Validación de datos**: Validación en todos los endpoints
-- **Rate limiting**: Protección contra spam (recomendado para producción)
 
 ## 🌐 Despliegue
 
@@ -274,23 +290,21 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 ### Objetivo del Proyecto
 
-**LOGRADO:** Aplicación completa de gestión financiera personal que ayuda a los usuarios a controlar sus gastos, establecer metas de ahorro y mejorar sus hábitos financieros.
+**LOGRADO:** Aplicación de gestión financiera personal que ayuda a controlar gastos, establecer metas de ahorro y mejorar hábitos financieros.
 
 ## 🚀 Funcionalidades Implementadas
 
 - 🔐 **Autenticación y Seguridad:** JWT, bcrypt, middleware de auth
-- 💰 **Gestión de Transacciones:** CRUD completo con paginación y filtros
+- 💰 **Gestión de Transacciones:** CRUD con paginación y filtros
 - 📊 **Dashboard Financiero:** Resúmenes por períodos, análisis por categorías
-- 🎯 **Metas de Ahorro:** Sistema completo con depósitos, retiros y tracking
+- 🎯 **Metas de Ahorro:** Sistema con depósitos, retiros y tracking
 - 💳 **Presupuestos:** Límites por categoría con alertas de exceso
 - 🔄 **Transacciones Recurrentes:** Job automático para pagos programados
 - 🔔 **Sistema de Notificaciones:** Alertas de presupuesto y metas completadas
 - 📈 **Ahorros Históricos:** Tracking de ahorros lifetime
 - 📊 **Exportación:** CSV y PDF de transacciones por rangos de fecha
-- 📈 **Reportes Avanzados:** Tendencias diarias y análisis por categorías
-- 📚 **Documentación Swagger:** API completamente documentada
-
-## 📁 Arquitectura del Proyecto
+- 📈 **Reportes:** Tendencias diarias y análisis por categorías
+- 📚 **Documentación Swagger:** API documentada## 📁 Arquitectura del Proyecto
 
 ```
 📦 FinGuardian Backend

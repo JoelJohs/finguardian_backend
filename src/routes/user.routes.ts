@@ -2,7 +2,8 @@ import { Router } from "express";
 import { AppDataSource } from "../config/database";
 import { User } from "../entities/User";
 import bcrypt from "bcrypt";
-import { signToken } from "../utils/auth";
+import { signToken, setTokenCookie, clearTokenCookie } from "../utils/auth";
+import { auth, AuthRequest } from "../middlewares/auth";
 
 const router = Router();
 
@@ -72,9 +73,11 @@ router.post("/register", async (req, res) => {
 
   const token = signToken(newUser.id);
 
+  // Establecer el token en una cookie segura
+  setTokenCookie(res, token);
+
   res.status(201).json({
     message: "Usuario registrado exitosamente",
-    token,
     user: { id: newUser.id, username: newUser.username, email: newUser.email },
   });
 });
@@ -144,11 +147,93 @@ router.post("/login", async (req, res) => {
 
   const token = signToken(user.id);
 
+  // Establecer el token en una cookie segura
+  setTokenCookie(res, token);
+
   res.status(200).json({
     message: "Inicio de sesión exitoso",
-    token,
     user: { id: user.id, username: user.username, email: user.email },
   });
+});
+
+/**
+ * @swagger
+ * /api/users/logout:
+ *   post:
+ *     tags: [Auth]
+ *     summary: Cerrar sesión
+ *     description: Cierra la sesión del usuario eliminando la cookie de autenticación
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Sesión cerrada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               message: "Sesión cerrada exitosamente"
+ */
+// Logout
+router.post("/logout", auth, (req: AuthRequest, res) => {
+  // Limpiar la cookie del token
+  clearTokenCookie(res);
+
+  res.status(200).json({
+    message: "Sesión cerrada exitosamente"
+  });
+});
+
+/**
+ * @swagger
+ * /api/users/me:
+ *   get:
+ *     tags: [Auth]
+ *     summary: Obtener información del usuario actual
+ *     description: Retorna la información del usuario autenticado
+ *     security:
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Información del usuario obtenida exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *             example:
+ *               user:
+ *                 id: "123e4567-e89b-12d3-a456-426614174000"
+ *                 username: "john_doe"
+ *                 email: "john@example.com"
+ *       401:
+ *         description: Token de autorización inválido
+ */
+// Obtener información del usuario actual
+router.get("/me", auth, async (req: AuthRequest, res) => {
+  try {
+    const user = await repo().findOne({
+      where: { id: req.userId },
+      select: ["id", "username", "email", "created_at"]
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "Usuario no encontrado" });
+    }
+
+    res.status(200).json({
+      user: { id: user.id, username: user.username, email: user.email }
+    });
+  } catch (error) {
+    console.error("Error al obtener información del usuario:", error);
+    res.status(500).json({ message: "Error interno del servidor" });
+  }
 });
 
 export default router;

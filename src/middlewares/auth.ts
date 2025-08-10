@@ -7,16 +7,22 @@ export interface AuthRequest extends Request {
 }
 
 export const auth = (req: AuthRequest, res: Response, next: NextFunction) => {
-  const header = req.headers.authorization;
-  if (!header) {
-    return res.status(401).json({ message: "Falta el token de autorización" });
+  // Primero intentar obtener el token de las cookies
+  let token = req.cookies?.authToken;
+
+  // Si no hay token en las cookies, intentar obtenerlo del header Authorization (para retrocompatibilidad)
+  if (!token) {
+    const header = req.headers.authorization;
+    if (header) {
+      const [type, headerToken] = header.split(" ");
+      if (type === "Bearer" && headerToken) {
+        token = headerToken;
+      }
+    }
   }
 
-  const [type, token] = header.split(" ");
-  if (type !== "Bearer" || !token) {
-    return res
-      .status(401)
-      .json({ message: "Formato de autorización inválido" });
+  if (!token) {
+    return res.status(401).json({ message: "Falta el token de autorización" });
   }
 
   try {

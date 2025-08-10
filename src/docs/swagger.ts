@@ -23,8 +23,14 @@ const options: swaggerJSDoc.Options = {
                     type: 'http',
                     scheme: 'bearer',
                     bearerFormat: 'JWT',
-                    description: 'Token JWT obtenido al hacer login'
+                    description: 'Token JWT obtenido al hacer login (para retrocompatibilidad)'
                 },
+                cookieAuth: {
+                    type: 'apiKey',
+                    in: 'cookie',
+                    name: 'authToken',
+                    description: 'Token JWT almacenado en cookie httpOnly (método recomendado)'
+                }
             },
             schemas: {
                 User: {

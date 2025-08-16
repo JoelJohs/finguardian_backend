@@ -9,7 +9,7 @@ import { setupSocket } from './socket';
 // Cargar variables de entorno
 dotenv.config();
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "localhost";
 
 // Crear servidor HTTP y configurar Socket.IO

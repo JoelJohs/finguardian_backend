@@ -17,7 +17,7 @@ La documentación de la API está disponible via Swagger:
 
 ## 📖 Descripción
 
-FinGuardian es una API REST robusta y completa para control financiero personal que permite a los usuarios gestionar sus transacciones, establecer presupuestos, crear metas de ahorro y generar reportes detallados. Desarrollada con Node.js, TypeScript y PostgreSQL, ofrece un sistema completo de autenticación JWT y documentación Swagger.
+FinGuardian es una API REST robusta y completa para control financiero personal que permite a los usuarios gestionar sus transacciones, establecer presupuestos, crear metas de ahorro y generar reportes detallados. Desarrollada con Node.js, TypeScript y PostgreSQL, ofrece un sistema completo de autenticación JWT con almacenamiento en localStorage del cliente y documentación Swagger.
 
 > **Control Financiero Personal** - API REST completa para gestión de finanzas personales
 
@@ -33,7 +33,7 @@ FinGuardian es una API REST robusta y completa para control financiero personal 
 
 ## 🚀 Características Principales
 
-- **🔐 Autenticación**: Sistema con JWT y bcrypt
+- **🔐 Autenticación JWT**: Sistema completo con localStorage y duración configurable
 - **💰 Gestión de Transacciones**: CRUD con filtros y paginación
 - **📊 Dashboard**: Resúmenes financieros por períodos
 - **🎯 Metas de Ahorro**: Sistema con tracking de progreso
@@ -222,12 +222,35 @@ npm run migration:revert
 - `npm run migration:run` - Ejecutar migraciones
 - `npm run migration:revert` - Revertir migración
 
-## 🔒 Seguridad
+## 🔒 Seguridad y Autenticación
 
-- **Autenticación JWT**: Tokens con expiración
-- **Hash de contraseñas**: bcrypt con salt rounds
-- **Middleware de seguridad**: helmet, cors
-- **Validación de datos**: Validación en todos los endpoints
+### Sistema de Autenticación JWT
+
+- **Tokens JWT**: Autenticación basada en JSON Web Tokens
+- **Duración configurable**: 
+  - 24 horas (sesión normal)
+  - 7 días (con "Recordarme" activado)
+- **Almacenamiento**: El frontend almacena el token en localStorage
+- **Transporte**: Tokens enviados via header `Authorization: Bearer <token>`
+- **Hash de contraseñas**: bcrypt con salt rounds para máxima seguridad
+- **Middleware de seguridad**: helmet, cors, rate limiting
+- **Validación de datos**: Validación estricta en todos los endpoints
+
+### Flujo de Autenticación
+
+1. **Registro/Login**: El usuario envía credenciales
+2. **Verificación**: El servidor valida y genera JWT
+3. **Respuesta**: Token enviado en la respuesta JSON
+4. **Almacenamiento**: Frontend guarda token en localStorage
+5. **Autorización**: Token incluido automáticamente en headers de peticiones
+6. **Validación**: Middleware verifica token en rutas protegidas
+
+### Endpoints de Autenticación
+
+- `POST /api/users/register` - Registro de usuario
+- `POST /api/users/login` - Inicio de sesión (con opción "Recordarme")
+- `POST /api/users/logout` - Cierre de sesión
+- `GET /api/users/me` - Información del usuario actual
 
 ## 🌐 Despliegue
 
@@ -353,6 +376,8 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 - ✅ Token JWT generado y verificado correctamente
 - ✅ Backend ejecutándose sin errores (npm run dev)
 - ✅ Hash de contraseñas con bcrypt
+- ✅ Migración a localStorage (Agosto 2025)
+- ✅ Sistema "Recordarme" con duración configurable (24h/7d)
 
 ### ✅ Fase 2: Gestión de Transacciones
 
@@ -465,11 +490,14 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 
 **Logros Principales:**
 
-1. **🔐 Sistema de Autenticación Robusto**
+1. **🔐 Sistema de Autenticación Moderno**
 
    - Registro y login con JWT
    - Hash seguro de contraseñas con bcrypt
-   - Middleware de protección en todas las rutas
+   - Tokens almacenados en localStorage del cliente
+   - Duración configurable (24h normal, 7 días con "Recordarme")
+   - Middleware de protección en todas las rutas protegidas
+   - Autorización via header Authorization Bearer
 
 2. **💰 Gestión Completa de Transacciones**
 

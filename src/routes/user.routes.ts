@@ -71,10 +71,10 @@ router.post("/register", async (req, res) => {
 
   await repo().save(newUser);
 
-  const token = signToken(newUser.id);
+  const token = signToken(newUser.id, false);
 
-  // Establecer el token en una cookie segura
-  setTokenCookie(res, token);
+  // Establecer el token en una cookie segura (registro siempre con duración corta)
+  setTokenCookie(res, token, false);
 
   res.status(201).json({
     message: "Usuario registrado exitosamente",
@@ -131,7 +131,7 @@ router.post("/register", async (req, res) => {
  */
 // Login
 router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, rememberMe } = req.body;
   if (!username || !password) {
     return res.status(400).json({ message: "Faltan datos requeridos" });
   }
@@ -145,10 +145,10 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ message: "contraseña incorrecta" });
   }
 
-  const token = signToken(user.id);
+  const token = signToken(user.id, rememberMe);
 
-  // Establecer el token en una cookie segura
-  setTokenCookie(res, token);
+  // Establecer el token en una cookie segura con duración basada en rememberMe
+  setTokenCookie(res, token, rememberMe);
 
   res.status(200).json({
     message: "Inicio de sesión exitoso",

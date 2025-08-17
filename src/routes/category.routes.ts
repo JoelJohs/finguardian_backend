@@ -80,7 +80,18 @@ router.get("/stats/:userId", auth, async (req: AuthRequest, res) => {
             .orderBy("totalAmount", "DESC")
             .getRawMany();
 
-        res.json(categoryStats);
+        // Convertir las propiedades a los nombres esperados en el frontend
+        const formattedStats = categoryStats.map(stat => ({
+            categoryId: stat.categoryid,
+            categoryName: stat.categoryname,
+            categoryIcon: stat.categoryicon,
+            categoryColor: stat.categorycolor,
+            categoryType: stat.categorytype,
+            totalAmount: parseFloat(stat.totalamount),
+            transactionCount: parseInt(stat.transactioncount)
+        }));
+
+        res.json(formattedStats);
     } catch (error) {
         console.error("Error al obtener estadísticas de categorías:", error);
         res.status(500).json({

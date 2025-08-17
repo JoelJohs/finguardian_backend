@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 import { User } from "./User";
 import { Category } from "./Category";
 
@@ -21,4 +21,7 @@ export class Budget {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @UpdateDateColumn()
+  updatedAt!: Date;
 }

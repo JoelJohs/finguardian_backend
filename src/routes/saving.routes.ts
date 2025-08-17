@@ -281,11 +281,58 @@ router.patch("/:id/deposit", auth, async (req: AuthRequest, res) => {
     return res.status(404).json({ message: "Meta no encontrada" });
   }
 
-  // Convertir a números antes de hacer la operación
-  const currentAmount = parseFloat(goal.current_amount.toString());
-  const targetAmount = parseFloat(goal.target_amount.toString());
+  // Importar Transaction para calcular balance disponible
+  const { Transaction } = await import("../entities/Transaction");
+  const transactionRepo = AppDataSource.getRepository(Transaction);
 
-  goal.current_amount = Math.min(currentAmount + amount, targetAmount);
+  // Calcular balance total del usuario
+  const userTransactions = await transactionRepo.find({
+    where: { user: { id: req.userId! } }
+  });
+
+  const totalBalance = userTransactions.reduce((total, transaction) => {
+    const amount = parseFloat(transaction.amount.toString());
+    return transaction.type === 'income'
+      ? total + amount
+      : total - amount;
+  }, 0);
+
+  // Calcular total ahorrado en todas las metas (excluyendo la actual)
+  const allGoals = await repo().find({
+    where: {
+      user: { id: req.userId! },
+      isDeleted: false
+    }
+  });
+
+  const totalSavedOthers = allGoals
+    .filter(g => g.id !== goal.id)
+    .reduce((total, g) => total + parseFloat(g.current_amount.toString()), 0);
+
+  const currentGoalAmount = parseFloat(goal.current_amount.toString());
+  const availableToSave = totalBalance - totalSavedOthers - currentGoalAmount;
+
+  if (amount > availableToSave) {
+    return res.status(400).json({
+      message: `No tienes suficiente dinero disponible. Disponible para ahorrar: $${availableToSave.toFixed(2)}`,
+      availableAmount: availableToSave
+    });
+  }
+
+  // Convertir a números antes de hacer la operación
+  const targetAmount = parseFloat(goal.target_amount.toString());
+  const newAmount = currentGoalAmount + amount;
+
+  // Verificar que no exceda la meta
+  if (newAmount > targetAmount) {
+    const maxDeposit = targetAmount - currentGoalAmount;
+    return res.status(400).json({
+      message: `El depósito excede la meta objetivo. Máximo a depositar: $${maxDeposit.toFixed(2)}`,
+      maxAmount: maxDeposit
+    });
+  }
+
+  goal.current_amount = newAmount;
 
   // Verificar si se completó la meta
   if (goal.current_amount >= targetAmount && !goal.completedAt) {
@@ -438,6 +485,107 @@ router.delete('/:id', auth, async (req: AuthRequest, res) => {
   goal.isDeleted = true;
   await repo().save(goal);
   res.status(204).send();
+});
+
+/**
+ * @swagger
+ * /api/savings-goals/stats:
+ *   get:
+ *     tags: [Savings]
+ *     summary: Obtener estadísticas de ahorro
+ *     description: Obtiene estadísticas generales de las metas de ahorro del usuario
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Estadísticas obtenidas exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 totalGoals:
+ *                   type: number
+ *                   description: Total de metas de ahorro
+ *                 completedGoals:
+ *                   type: number
+ *                   description: Metas completadas
+ *                 totalSaved:
+ *                   type: number
+ *                   description: Total ahorrado
+ *                 totalTargetAmount:
+ *                   type: number
+ *                   description: Total de metas objetivo
+ *                 totalBalance:
+ *                   type: number
+ *                   description: Balance total del usuario
+ *                 availableToSpend:
+ *                   type: number
+ *                   description: Dinero disponible para gastar
+ */
+// GET /api/savings-goals/stats
+router.get("/stats", auth, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.userId!;
+    const savingsGoalRepo = AppDataSource.getRepository(SavingsGoal);
+
+    // Importar Transaction aquí para evitar dependencias circulares
+    const { Transaction } = await import("../entities/Transaction");
+    const transactionRepo = AppDataSource.getRepository(Transaction);
+
+    // Obtener todas las metas
+    const goals = await savingsGoalRepo.find({
+      where: {
+        user: { id: userId },
+        isDeleted: false
+      }
+    });
+
+    // Calcular estadísticas
+    const totalGoals = goals.length;
+    const completedGoals = goals.filter(goal => goal.completedAt).length;
+    const totalSaved = goals.reduce((total, goal) => total + goal.current_amount, 0);
+    const totalTargetAmount = goals.reduce((total, goal) => total + goal.target_amount, 0);
+
+    // Calcular balance total del usuario
+    const userTransactions = await transactionRepo.find({
+      where: { user: { id: userId } }
+    });
+
+    console.log(`📊 Debug Stats for user ${userId}:`, {
+      totalTransactions: userTransactions.length,
+      transactionsSample: userTransactions.slice(0, 3).map(t => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        created_at: t.created_at
+      }))
+    });
+
+    const totalBalance = userTransactions.reduce((total, transaction) => {
+      const amount = parseFloat(transaction.amount.toString());
+      return transaction.type === 'income'
+        ? total + amount
+        : total - amount;
+    }, 0);
+
+    console.log(`💰 Total balance calculated: ${totalBalance}`);
+
+    const availableToSpend = totalBalance - totalSaved;
+
+    res.json({
+      totalGoals,
+      completedGoals,
+      totalSaved,
+      totalTargetAmount,
+      totalBalance,
+      availableToSpend,
+      savingsPercentage: totalTargetAmount > 0 ? (totalSaved / totalTargetAmount) * 100 : 0
+    });
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    res.status(500).json({ message: 'Error interno del servidor' });
+  }
 });
 
 export default router;

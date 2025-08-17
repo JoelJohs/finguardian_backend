@@ -4,7 +4,7 @@ import { Budget } from '../entities/Budget';
 import { Category } from '../entities/Category';
 import { auth, AuthRequest } from '../middlewares/auth';
 import { BudgetDTO } from '../dto/BudgetDTO';
-import { checkBudgetAlert } from '../services/budget.service';
+import { checkBudgetAlert, getBudgetsWithSpent } from '../services/budget.service';
 
 
 const router = Router();
@@ -124,12 +124,13 @@ router.post('/', auth, async (req: AuthRequest, res) => {
  */
 // GET /api/budgets
 router.get('/', auth, async (req: AuthRequest, res) => {
-    const budgets = await repo().find({
-        where: { user: { id: req.userId! } },
-        relations: ['category'],
-        order: { createdAt: 'DESC' },
-    });
-    res.json(budgets);
+    try {
+        const budgetsWithSpent = await getBudgetsWithSpent(req.userId!);
+        res.json(budgetsWithSpent);
+    } catch (error) {
+        console.error('Error al obtener presupuestos:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 
@@ -198,6 +199,89 @@ router.get('/:categoryId/almost', auth, async (req: AuthRequest, res) => {
 
     const alert = await checkBudgetAlert(req.userId!, categoryId, 0, budget.period as 'monthly' | 'weekly');
     res.json(alert);
+});
+
+/**
+ * @swagger
+ * /api/budgets/{id}:
+ *   put:
+ *     tags: [Budgets]
+ *     summary: Actualizar presupuesto completo
+ *     description: Actualiza un presupuesto existente con todos los campos
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del presupuesto
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/BudgetDTO'
+ *           example:
+ *             limit: 750.00
+ *             categoryId: 1
+ *             period: "monthly"
+ *     responses:
+ *       200:
+ *         description: Presupuesto actualizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Budget'
+ *       400:
+ *         description: Datos inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Presupuesto no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+// PUT /api/budgets/:id
+router.put('/:id', auth, async (req: AuthRequest, res) => {
+    try {
+        const dto: BudgetDTO = req.body;
+        const userId = req.userId!;
+
+        // Verificar que la categoría existe
+        const category = await catRepo().findOneBy({ id: dto.categoryId });
+        if (!category) return res.status(400).json({ error: 'Categoría inválida' });
+
+        // Buscar el presupuesto
+        const budget = await repo().findOne({
+            where: { id: req.params.id, user: { id: userId } },
+            relations: ['category', 'user']
+        });
+        if (!budget) return res.status(404).json({ error: 'Presupuesto no encontrado' });
+
+        // Actualizar campos
+        budget.limit = dto.limit;
+        budget.period = dto.period;
+        budget.category = { id: dto.categoryId } as any;
+
+        await repo().save(budget);
+
+        // Retornar con datos actualizados
+        const updatedBudget = await repo().findOne({
+            where: { id: budget.id },
+            relations: ['category']
+        });
+
+        res.json(updatedBudget);
+    } catch (error) {
+        console.error('Error al actualizar presupuesto:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 /**

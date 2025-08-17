@@ -3,6 +3,7 @@ import { Router } from "express";
 // Rutas
 import userRoutes from "./user.routes";
 import transactionRoutes from "./transaction.route";
+import categoryRoutes from "./category.routes";
 import dashboardRoutes from "./dashboard.routes";
 import savingRoutes from "./saving.routes";
 import lifetimeRoutes from "./lifetime.routes";
@@ -22,6 +23,7 @@ router.get("/health", (req, res) => {
 // Rutas de la API
 router.use("/users", userRoutes);
 router.use("/transactions", transactionRoutes);
+router.use("/categories", categoryRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/savings-goals", savingRoutes);
 router.use("/lifetime-savings", lifetimeRoutes);

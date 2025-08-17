@@ -357,5 +357,56 @@ router.delete("/:id", auth, async (req: AuthRequest, res) => {
   res.status(204).send();
 });
 
+/**
+ * @swagger
+ * /api/transactions/recent/{userId}:
+ *   get:
+ *     tags: [Transactions]
+ *     summary: Obtener transacciones recientes
+ *     description: Obtiene las transacciones más recientes de un usuario
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID del usuario
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 5
+ *         description: Número de transacciones a obtener
+ *     responses:
+ *       200:
+ *         description: Lista de transacciones recientes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Transaction'
+ */
+router.get("/recent/:userId", auth, async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.params;
+    const limit = parseInt(req.query.limit as string) || 5;
+
+    const transactions = await repo().find({
+      where: { user: { id: userId } },
+      relations: ["category"],
+      order: { created_at: "DESC" },
+      take: limit
+    });
+
+    res.json(transactions);
+  } catch (error) {
+    console.error("Error al obtener transacciones recientes:", error);
+    res.status(500).json({
+      message: "Error interno del servidor al obtener transacciones recientes"
+    });
+  }
+});
+
 // Exportar el router
 export default router;

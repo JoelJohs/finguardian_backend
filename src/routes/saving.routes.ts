@@ -47,15 +47,30 @@ router.post("/", auth, async (req: AuthRequest, res) => {
   const dto = req.body;
   const userId = req.userId!;
 
+  // Validar campos requeridos
+  if (!dto.name || !dto.target_amount || !dto.deadline || !dto.frequency) {
+    return res.status(400).json({
+      message: "Todos los campos son requeridos: name, target_amount, deadline, frequency"
+    });
+  }
+
+  if (dto.target_amount <= 0) {
+    return res.status(400).json({
+      message: "El monto objetivo debe ser mayor a 0"
+    });
+  }
+
   const newGoal = repo().create({
-    ...dto,
+    name: dto.name,
+    target_amount: Number(dto.target_amount),
+    deadline: new Date(dto.deadline),
+    frequency: dto.frequency,
+    current_amount: 0,
     user: { id: userId },
-    target_amount: dto.targetAmount,
-    deadline: dto.deadline,
   });
 
-  await repo().save(newGoal);
-  res.status(201).json(newGoal);
+  const savedGoal = await repo().save(newGoal);
+  res.status(201).json(savedGoal);
 });
 
 /**
@@ -291,7 +306,7 @@ router.patch("/:id/deposit", auth, async (req: AuthRequest, res) => {
   });
 
   const totalBalance = userTransactions.reduce((total, transaction) => {
-    const amount = parseFloat(transaction.amount.toString());
+    const amount = Number(transaction.amount);
     return transaction.type === 'income'
       ? total + amount
       : total - amount;
@@ -307,9 +322,9 @@ router.patch("/:id/deposit", auth, async (req: AuthRequest, res) => {
 
   const totalSavedOthers = allGoals
     .filter(g => g.id !== goal.id)
-    .reduce((total, g) => total + parseFloat(g.current_amount.toString()), 0);
+    .reduce((total, g) => total + Number(g.current_amount), 0);
 
-  const currentGoalAmount = parseFloat(goal.current_amount.toString());
+  const currentGoalAmount = Number(goal.current_amount);
   const availableToSave = totalBalance - totalSavedOthers - currentGoalAmount;
 
   if (amount > availableToSave) {
@@ -320,7 +335,7 @@ router.patch("/:id/deposit", auth, async (req: AuthRequest, res) => {
   }
 
   // Convertir a números antes de hacer la operación
-  const targetAmount = parseFloat(goal.target_amount.toString());
+  const targetAmount = Number(goal.target_amount);
   const newAmount = currentGoalAmount + amount;
 
   // Verificar que no exceda la meta
@@ -430,7 +445,7 @@ router.patch('/:id/withdraw', auth, async (req: AuthRequest, res) => {
   if (!goal) return res.status(404).json({ error: 'Meta no encontrada' });
 
   // Convertir a números antes de hacer la operación
-  const currentAmount = parseFloat(goal.current_amount.toString());
+  const currentAmount = Number(goal.current_amount);
 
   if (currentAmount < amount)
     return res.status(409).json({ error: 'Fondos insuficientes' });
@@ -544,32 +559,20 @@ router.get("/stats", auth, async (req: AuthRequest, res) => {
     // Calcular estadísticas
     const totalGoals = goals.length;
     const completedGoals = goals.filter(goal => goal.completedAt).length;
-    const totalSaved = goals.reduce((total, goal) => total + goal.current_amount, 0);
-    const totalTargetAmount = goals.reduce((total, goal) => total + goal.target_amount, 0);
+    const totalSaved = goals.reduce((total, goal) => total + Number(goal.current_amount), 0);
+    const totalTargetAmount = goals.reduce((total, goal) => total + Number(goal.target_amount), 0);
 
     // Calcular balance total del usuario
     const userTransactions = await transactionRepo.find({
       where: { user: { id: userId } }
     });
 
-    console.log(`📊 Debug Stats for user ${userId}:`, {
-      totalTransactions: userTransactions.length,
-      transactionsSample: userTransactions.slice(0, 3).map(t => ({
-        id: t.id,
-        type: t.type,
-        amount: t.amount,
-        created_at: t.created_at
-      }))
-    });
-
     const totalBalance = userTransactions.reduce((total, transaction) => {
-      const amount = parseFloat(transaction.amount.toString());
+      const amount = Number(transaction.amount);
       return transaction.type === 'income'
         ? total + amount
         : total - amount;
     }, 0);
-
-    console.log(`💰 Total balance calculated: ${totalBalance}`);
 
     const availableToSpend = totalBalance - totalSaved;
 

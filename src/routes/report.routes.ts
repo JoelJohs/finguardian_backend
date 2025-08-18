@@ -4,6 +4,8 @@ import { AppDataSource } from '../config/database';
 import { auth, AuthRequest } from '../middlewares/auth';
 import { Between } from 'typeorm';
 import { Transaction } from '../entities/Transaction';
+import { Budget } from '../entities/Budget';
+import { SavingsGoal } from '../entities/SavingsGoal';
 import { AIAnalysisService } from '../services/ai-analysis.service';
 import pdfParse from 'pdf-parse';
 import multer from 'multer';
@@ -618,5 +620,337 @@ function generateAIAnalysisPDF(
     return doc;
 }
 */
+
+/**
+ * @swagger
+ * /api/reports/category-analysis:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Obtener análisis detallado por categorías
+ *     description: Retorna análisis completo de gastos por categoría con porcentajes y comparaciones
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de inicio (YYYY-MM-DD)
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de fin (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Análisis por categorías obtenido exitosamente
+ */
+router.get('/category-analysis', auth, async (req: AuthRequest, res) => {
+    try {
+        const { start, end } = req.query;
+        if (!start || !end) {
+            return res.status(400).json({ error: 'Faltan fechas' });
+        }
+
+        // Obtener gastos por categoría
+        const categoryRaw = await txRepo()
+            .createQueryBuilder('t')
+            .select('c.name', 'name')
+            .addSelect('c.color', 'color')
+            .addSelect('SUM(t.amount)', 'amount')
+            .addSelect('COUNT(t.id)', 'transactionCount')
+            .leftJoin('t.category', 'c')
+            .where('t.userId = :userId', { userId: req.userId })
+            .andWhere('t.type = :type', { type: 'expense' })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .groupBy('c.name, c.color')
+            .orderBy('amount', 'DESC')
+            .getRawMany();
+
+        const totalAmount = categoryRaw.reduce((sum, cat) => sum + parseFloat(cat.amount), 0);
+
+        const categories = categoryRaw.map(cat => ({
+            name: cat.name || 'Sin categoría',
+            amount: parseFloat(cat.amount),
+            percentage: totalAmount > 0 ? (parseFloat(cat.amount) / totalAmount * 100) : 0,
+            color: cat.color || '#6b7280',
+            transactionCount: parseInt(cat.transactionCount)
+        }));
+
+        // Generar insights
+        const topCategory = categories.length > 0 ? categories[0] : null;
+        const insights = [];
+
+        if (topCategory) {
+            insights.push(`Tu mayor gasto es en ${topCategory.name} con $${topCategory.amount.toFixed(2)} (${topCategory.percentage.toFixed(1)}%)`);
+        }
+
+        if (categories.length > 0) {
+            const smallCategories = categories.filter(cat => cat.percentage < 5);
+            if (smallCategories.length > 0) {
+                insights.push(`Tienes ${smallCategories.length} categorías con gastos menores al 5%`);
+            }
+        }
+
+        const response = {
+            categories,
+            totalAmount,
+            insights,
+            period: { start, end },
+            summary: {
+                totalCategories: categories.length,
+                averagePerCategory: categories.length > 0 ? totalAmount / categories.length : 0
+            }
+        };
+
+        res.json(response);
+    } catch (error) {
+        console.error('❌ Error en category-analysis:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/reports/monthly-comparison:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Obtener comparación mensual de finanzas
+ *     description: Compara los últimos meses de ingresos, gastos y balance
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Comparación mensual obtenida exitosamente
+ */
+router.get('/monthly-comparison', auth, async (req: AuthRequest, res) => {
+    try {
+        // Obtener datos de los últimos 6 meses
+        const monthsData = await txRepo()
+            .createQueryBuilder('t')
+            .select("TO_CHAR(t.created_at, 'YYYY-MM')", 'month')
+            .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'income')
+            .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expense')
+            .addSelect('COUNT(t.id)', 'transactionCount')
+            .where('t.userId = :userId', { userId: req.userId })
+            .andWhere('t.created_at >= :sixMonthsAgo', {
+                sixMonthsAgo: new Date(Date.now() - 6 * 30 * 24 * 60 * 60 * 1000)
+            })
+            .groupBy('month')
+            .orderBy('month', 'ASC')
+            .setParameters({ income: 'income', expense: 'expense' })
+            .getRawMany();
+
+        const months = monthsData.map(m => {
+            const income = parseFloat(m.income);
+            const expense = parseFloat(m.expense);
+            return {
+                month: m.month,
+                income,
+                expense,
+                balance: income - expense,
+                transactionCount: parseInt(m.transactionCount)
+            };
+        });
+
+        // Calcular comparaciones
+        const currentMonth = months[months.length - 1];
+        const previousMonth = months[months.length - 2];
+
+        let comparison = null;
+        if (currentMonth && previousMonth) {
+            comparison = {
+                incomeChange: ((currentMonth.income - previousMonth.income) / previousMonth.income * 100) || 0,
+                expenseChange: ((currentMonth.expense - previousMonth.expense) / previousMonth.expense * 100) || 0,
+                balanceChange: ((currentMonth.balance - previousMonth.balance) / Math.abs(previousMonth.balance) * 100) || 0
+            };
+        }
+
+        // Generar insights
+        const insights = [];
+        if (comparison) {
+            if (comparison.incomeChange > 0) {
+                insights.push(`Tus ingresos aumentaron ${comparison.incomeChange.toFixed(1)}% este mes`);
+            } else if (comparison.incomeChange < 0) {
+                insights.push(`Tus ingresos disminuyeron ${Math.abs(comparison.incomeChange).toFixed(1)}% este mes`);
+            }
+
+            if (comparison.expenseChange > 10) {
+                insights.push(`Atención: tus gastos aumentaron ${comparison.expenseChange.toFixed(1)}% este mes`);
+            } else if (comparison.expenseChange < -10) {
+                insights.push(`¡Excelente! Redujiste tus gastos ${Math.abs(comparison.expenseChange).toFixed(1)}% este mes`);
+            }
+        }
+
+        res.json({
+            months,
+            comparison,
+            insights,
+            summary: {
+                totalMonths: months.length,
+                averageIncome: months.reduce((sum, m) => sum + m.income, 0) / months.length || 0,
+                averageExpense: months.reduce((sum, m) => sum + m.expense, 0) / months.length || 0
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error en monthly-comparison:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * @swagger
+ * /api/reports/goals-vs-reality:
+ *   get:
+ *     tags: [Reports]
+ *     summary: Comparar metas versus realidad
+ *     description: Compara presupuestos y metas de ahorro con resultados reales
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de inicio (YYYY-MM-DD)
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de fin (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Comparación de metas obtenida exitosamente
+ */
+router.get('/goals-vs-reality', auth, async (req: AuthRequest, res) => {
+    try {
+        const { start, end } = req.query;
+        if (!start || !end) {
+            return res.status(400).json({ error: 'Faltan fechas' });
+        }
+
+        // Obtener presupuestos activos
+        const budgetRepo = AppDataSource.getRepository(Budget);
+        const budgets = await budgetRepo
+            .createQueryBuilder('b')
+            .leftJoinAndSelect('b.category', 'c')
+            .where('b.userId = :userId', { userId: req.userId })
+            .getMany();
+
+        // Obtener gastos reales por categoría en el período
+        const actualExpenses = await txRepo()
+            .createQueryBuilder('t')
+            .select('c.id', 'categoryId')
+            .addSelect('c.name', 'categoryName')
+            .addSelect('SUM(t.amount)', 'actualSpent')
+            .leftJoin('t.category', 'c')
+            .where('t.userId = :userId', { userId: req.userId })
+            .andWhere('t.type = :type', { type: 'expense' })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .groupBy('c.id, c.name')
+            .getRawMany();
+
+        // Obtener metas de ahorro
+        const savingsRepo = AppDataSource.getRepository(SavingsGoal);
+        const savingsGoals = await savingsRepo
+            .createQueryBuilder('s')
+            .where('s.userId = :userId', { userId: req.userId })
+            .andWhere('s.isDeleted = :deleted', { deleted: false })
+            .getMany();
+
+        // Calcular ahorros reales (ingresos - gastos)
+        const totalIncome = await txRepo()
+            .createQueryBuilder('t')
+            .select('SUM(t.amount)', 'total')
+            .where('t.userId = :userId', { userId: req.userId })
+            .andWhere('t.type = :type', { type: 'income' })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .getRawOne();
+
+        const totalExpense = await txRepo()
+            .createQueryBuilder('t')
+            .select('SUM(t.amount)', 'total')
+            .where('t.userId = :userId', { userId: req.userId })
+            .andWhere('t.type = :type', { type: 'expense' })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .getRawOne();
+
+        const actualSavings = (parseFloat(totalIncome?.total) || 0) - (parseFloat(totalExpense?.total) || 0);
+
+        // Procesar presupuestos vs realidad
+        const budgetComparisons = budgets.map(budget => {
+            const actual = actualExpenses.find(exp => exp.categoryId === budget.category?.id);
+            const actualSpent = parseFloat(actual?.actualSpent) || 0;
+            const budgetAmount = parseFloat(budget.limit.toString());
+
+            return {
+                category: budget.category?.name || 'Sin categoría',
+                budgeted: budgetAmount,
+                actual: actualSpent,
+                difference: budgetAmount - actualSpent,
+                percentage: budgetAmount > 0 ? (actualSpent / budgetAmount * 100) : 0,
+                status: actualSpent <= budgetAmount ? 'within_budget' : 'over_budget'
+            };
+        });
+
+        // Procesar metas de ahorro vs realidad
+        const savingsComparisons = savingsGoals.map(goal => {
+            const goalAmount = parseFloat(goal.target_amount.toString());
+            const currentAmount = parseFloat(goal.current_amount.toString()) || 0;
+
+            return {
+                name: goal.name,
+                target: goalAmount,
+                current: currentAmount,
+                progress: goalAmount > 0 ? (currentAmount / goalAmount * 100) : 0,
+                remaining: goalAmount - currentAmount,
+                status: currentAmount >= goalAmount ? 'completed' : 'in_progress'
+            };
+        });
+
+        // Generar insights
+        const insights = [];
+        const overBudgetCategories = budgetComparisons.filter(b => b.status === 'over_budget');
+        const withinBudgetCategories = budgetComparisons.filter(b => b.status === 'within_budget');
+
+        if (overBudgetCategories.length > 0) {
+            insights.push(`Te pasaste del presupuesto en ${overBudgetCategories.length} categoría(s)`);
+        }
+
+        if (withinBudgetCategories.length > 0) {
+            insights.push(`Mantuviste el presupuesto en ${withinBudgetCategories.length} categoría(s)`);
+        }
+
+        const completedGoals = savingsComparisons.filter(s => s.status === 'completed');
+        if (completedGoals.length > 0) {
+            insights.push(`¡Felicidades! Completaste ${completedGoals.length} meta(s) de ahorro`);
+        }
+
+        res.json({
+            budgets: budgetComparisons,
+            savings: savingsComparisons,
+            actualSavings,
+            insights,
+            period: { start, end },
+            summary: {
+                totalBudgets: budgetComparisons.length,
+                budgetsWithinLimit: withinBudgetCategories.length,
+                totalSavingsGoals: savingsComparisons.length,
+                completedSavingsGoals: completedGoals.length
+            }
+        });
+    } catch (error) {
+        console.error('❌ Error en goals-vs-reality:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
 
 export default router;

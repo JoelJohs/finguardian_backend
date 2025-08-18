@@ -63,22 +63,36 @@ const txRepo = () => AppDataSource.getRepository(Transaction);
  */
 // GET /api/export/pdf?start=2024-07-01&end=2024-07-31
 router.get('/pdf', auth, async (req: AuthRequest, res) => {
-    const { start, end } = req.query;
-    if (!start || !end) return res.status(400).json({ error: 'Faltan fechas' });
+    try {
+        const { start, end } = req.query;
+        console.log('🔍 Recibiendo request de PDF:', { start, end, userId: req.userId });
 
-    const data = await txRepo()
-        .createQueryBuilder('t')
-        .leftJoinAndSelect('t.category', 'c')
-        .where('t.userId = :userId', { userId: req.userId })
-        .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
-        .orderBy('t.created_at', 'DESC')
-        .getMany();
+        if (!start || !end) {
+            console.log('❌ Faltan parámetros de fecha para PDF');
+            return res.status(400).json({ error: 'Faltan fechas' });
+        }
 
-    const doc = buildTransactionPDF(data, req.userId!, start as string, end as string);
+        const data = await txRepo()
+            .createQueryBuilder('t')
+            .leftJoinAndSelect('t.category', 'c')
+            .leftJoinAndSelect('t.user', 'user')
+            .where('user.id = :userId', { userId: req.userId })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .orderBy('t.created_at', 'DESC')
+            .getMany();
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="fin-guardian-${start}-${end}.pdf"`);
-    doc.pipe(res);
+        console.log('📊 Datos encontrados para PDF:', data.length, 'transacciones');
+
+        const doc = buildTransactionPDF(data, req.userId!, start as string, end as string);
+
+        console.log('✅ PDF generado exitosamente');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="fin-guardian-${start}-${end}.pdf"`);
+        doc.pipe(res);
+    } catch (error) {
+        console.error('❌ Error generando PDF:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 export default router;

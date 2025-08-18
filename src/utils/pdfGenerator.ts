@@ -28,15 +28,16 @@ export function buildTransactionPDF(
     let totalIncome = 0;
 
     transactions.forEach((t) => {
+        const amount = Number(t.amount); // Convertir a número
         doc.text(format(t.created_at, 'yyyy-MM-dd'), positions[0], y);
         doc.text(t.category.name, positions[1], y);
         doc.text(t.type, positions[2], y);
-        doc.text(`$${t.amount.toFixed(2)}`, positions[3], y);
+        doc.text(`$${amount.toFixed(2)}`, positions[3], y);
         doc.text(t.description || '-', positions[4], y);
         y += 15;
 
-        if (t.type === 'expense') totalExpense += t.amount;
-        else totalIncome += t.amount;
+        if (t.type === 'expense') totalExpense += amount;
+        else totalIncome += amount;
     });
 
     // Totales

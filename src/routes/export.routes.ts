@@ -64,30 +64,44 @@ const txRepo = () => AppDataSource.getRepository(Transaction);
  */
 // GET /api/export/csv?start=2024-07-01&end=2024-07-31
 router.get('/csv', auth, async (req: AuthRequest, res) => {
-    const { start, end } = req.query;
-    if (!start || !end) return res.status(400).json({ error: 'Faltan fechas' });
+    try {
+        const { start, end } = req.query;
+        console.log('🔍 Recibiendo request de CSV:', { start, end, userId: req.userId });
 
-    const data = await txRepo()
-        .createQueryBuilder('t')
-        .leftJoinAndSelect('t.category', 'c')
-        .where('t.userId = :userId', { userId: req.userId })
-        .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
-        .orderBy('t.created_at', 'DESC')
-        .getMany();
+        if (!start || !end) {
+            console.log('❌ Faltan parámetros de fecha para CSV');
+            return res.status(400).json({ error: 'Faltan fechas' });
+        }
 
-    const fields = ['created_at', 'amount', 'type', 'description', 'category.name'];
-    const parser = new Parser({ fields });
-    const csv = parser.parse(
-        data.map((t) => ({
-            ...t,
-            created_at: format(t.created_at, 'yyyy-MM-dd HH:mm'),
-            'category.name': t.category.name,
-        }))
-    );
+        const data = await txRepo()
+            .createQueryBuilder('t')
+            .leftJoinAndSelect('t.category', 'c')
+            .leftJoinAndSelect('t.user', 'user')
+            .where('user.id = :userId', { userId: req.userId })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .orderBy('t.created_at', 'DESC')
+            .getMany();
 
-    res.header('Content-Type', 'text/csv');
-    res.attachment(`fin-guardian-${start}-to-${end}.csv`);
-    res.send(csv);
+        console.log('📊 Datos encontrados para CSV:', data.length, 'transacciones');
+
+        const fields = ['created_at', 'amount', 'type', 'description', 'category.name'];
+        const parser = new Parser({ fields });
+        const csv = parser.parse(
+            data.map((t) => ({
+                ...t,
+                created_at: format(t.created_at, 'yyyy-MM-dd HH:mm'),
+                'category.name': t.category.name,
+            }))
+        );
+
+        console.log('✅ CSV generado exitosamente');
+        res.header('Content-Type', 'text/csv');
+        res.attachment(`fin-guardian-${start}-to-${end}.csv`);
+        res.send(csv);
+    } catch (error) {
+        console.error('❌ Error generando CSV:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 export default router;

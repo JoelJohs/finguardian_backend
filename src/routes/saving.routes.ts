@@ -208,6 +208,122 @@ router.get("/:id/progress", auth, async (req: AuthRequest, res) => {
 
 /**
  * @swagger
+ * /api/savings-goals/{id}/recommendation:
+ *   get:
+ *     tags: [Savings]
+ *     summary: Obtener recomendación de ahorro
+ *     description: Calcula cuánto debería ahorrar según el progreso actual y tiempo restante
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la meta de ahorro
+ *     responses:
+ *       200:
+ *         description: Recomendación calculada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 recommendedAmount:
+ *                   type: number
+ *                   description: Cantidad recomendada por período
+ *                 frequency:
+ *                   type: string
+ *                   description: Frecuencia de ahorro
+ *                 remaining:
+ *                   type: number
+ *                   description: Cantidad restante para completar
+ *                 periodsLeft:
+ *                   type: number
+ *                   description: Períodos restantes hasta deadline
+ *       404:
+ *         description: Meta no encontrada
+ *       401:
+ *         description: Token inválido o no proporcionado
+ */
+// GET /api/savings-goals/:id/recommendation
+router.get("/:id/recommendation", auth, async (req: AuthRequest, res) => {
+  const goal = await repo().findOne({
+    where: { id: req.params.id, user: { id: req.userId! }, isDeleted: false },
+  });
+
+  if (!goal) {
+    return res.status(404).json({ message: "Meta no encontrada" });
+  }
+
+  const remaining = Number(goal.target_amount) - Number(goal.current_amount);
+  const today = new Date();
+  const deadline = new Date(goal.deadline);
+  const totalDaysLeft = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (totalDaysLeft <= 0) {
+    return res.json({
+      recommendedAmount: 0,
+      frequency: goal.frequency,
+      remaining: Math.max(0, remaining),
+      periodsLeft: 0,
+      message: remaining > 0 ? "¡La fecha límite ya pasó!" : "¡Meta completada!"
+    });
+  }
+
+  if (remaining <= 0) {
+    return res.json({
+      recommendedAmount: 0,
+      frequency: goal.frequency,
+      remaining: 0,
+      periodsLeft: 0,
+      message: "¡Meta completada! 🎉"
+    });
+  }
+
+  // Calcular períodos restantes según la frecuencia
+  let periodsLeft: number;
+  let frequencyLabel: string;
+
+  switch (goal.frequency) {
+    case 'daily':
+      periodsLeft = totalDaysLeft;
+      frequencyLabel = 'día';
+      break;
+    case 'weekly':
+      periodsLeft = Math.ceil(totalDaysLeft / 7);
+      frequencyLabel = 'semana';
+      break;
+    case 'biweekly':
+      periodsLeft = Math.ceil(totalDaysLeft / 14);
+      frequencyLabel = 'quincena';
+      break;
+    case 'monthly':
+      periodsLeft = Math.ceil(totalDaysLeft / 30);
+      frequencyLabel = 'mes';
+      break;
+    default:
+      periodsLeft = totalDaysLeft;
+      frequencyLabel = 'día';
+  }
+
+  // Calcular cantidad recomendada (siempre redondear hacia arriba)
+  const recommendedAmount = Math.ceil(remaining / periodsLeft);
+
+  res.json({
+    recommendedAmount,
+    frequency: goal.frequency,
+    frequencyLabel,
+    remaining,
+    periodsLeft,
+    totalDaysLeft,
+    message: `Deberías ahorrar $${recommendedAmount.toFixed(2)} cada ${frequencyLabel} para completar tu meta`
+  });
+});
+
+/**
+ * @swagger
  * /api/savings-goals/{id}/deposit:
  *   patch:
  *     tags: [Savings]
@@ -500,6 +616,140 @@ router.delete('/:id', auth, async (req: AuthRequest, res) => {
   goal.isDeleted = true;
   await repo().save(goal);
   res.status(204).send();
+});
+
+/**
+ * @swagger
+ * /api/savings-goals/{id}/mark-used:
+ *   patch:
+ *     tags: [Savings]
+ *     summary: Marcar dinero de meta como utilizado
+ *     description: Marca que el dinero ahorrado ya se utilizó para su propósito
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la meta de ahorro
+ *     responses:
+ *       200:
+ *         description: Meta marcada como utilizada exitosamente
+ *       404:
+ *         description: Meta no encontrada
+ *       401:
+ *         description: Token inválido o no proporcionado
+ */
+// PATCH /api/savings-goals/:id/mark-used
+router.patch('/:id/mark-used', auth, async (req: AuthRequest, res) => {
+  const goal = await repo().findOne({
+    where: { id: req.params.id, user: { id: req.userId! }, isDeleted: false },
+  });
+
+  if (!goal) {
+    return res.status(404).json({ error: 'Meta no encontrada' });
+  }
+
+  if (!goal.completedAt) {
+    return res.status(400).json({ error: 'Solo se pueden marcar como utilizadas las metas completadas' });
+  }
+
+  if (goal.isMoneyUsed) {
+    return res.status(400).json({ error: 'Esta meta ya está marcada como utilizada' });
+  }
+
+  // Crear transacción de gasto por el dinero utilizado
+  const { Transaction } = await import("../entities/Transaction");
+  const { Category } = await import("../entities/Category");
+  const transactionRepo = AppDataSource.getRepository(Transaction);
+  const categoryRepo = AppDataSource.getRepository(Category);
+
+  // Buscar la categoría "Ahorros usados para su propósito"
+  const expenseCategory = await categoryRepo.findOne({
+    where: { name: "Ahorros usados para su propósito", type: "expense" }
+  });
+
+  if (!expenseCategory) {
+    return res.status(500).json({ error: 'Categoría de ahorros utilizados no encontrada' });
+  }
+
+  // Crear la transacción de gasto
+  const expenseTransaction = transactionRepo.create({
+    description: `Ahorro utilizado: ${goal.name}`,
+    amount: goal.current_amount,
+    type: 'expense',
+    category: expenseCategory,
+    user: { id: req.userId! },
+    created_at: new Date()
+  });
+
+  await transactionRepo.save(expenseTransaction);
+
+  goal.isMoneyUsed = true;
+  await repo().save(goal);
+
+  res.json({
+    goal,
+    transaction: expenseTransaction,
+    message: 'Meta marcada como utilizada y gasto registrado'
+  });
+});
+
+/**
+ * @swagger
+ * /api/savings-goals/{id}/delete-and-refund:
+ *   delete:
+ *     tags: [Savings]
+ *     summary: Eliminar meta y liberar dinero
+ *     description: Elimina completamente una meta de ahorro y libera el dinero ahorrado para uso general
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID de la meta de ahorro
+ *     responses:
+ *       200:
+ *         description: Meta eliminada y dinero liberado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 refundedAmount:
+ *                   type: number
+ *       404:
+ *         description: Meta no encontrada
+ *       401:
+ *         description: Token inválido o no proporcionado
+ */
+// DELETE /api/savings-goals/:id/delete-and-refund
+router.delete('/:id/delete-and-refund', auth, async (req: AuthRequest, res) => {
+  const goal = await repo().findOne({
+    where: { id: req.params.id, user: { id: req.userId! }, isDeleted: false },
+  });
+
+  if (!goal) {
+    return res.status(404).json({ error: 'Meta no encontrada' });
+  }
+
+  const refundedAmount = Number(goal.current_amount);
+
+  // Marcar como eliminado (soft delete)
+  goal.isDeleted = true;
+  await repo().save(goal);
+
+  res.json({
+    message: 'Meta eliminada exitosamente. El dinero ahorrado está nuevamente disponible.',
+    refundedAmount: refundedAmount
+  });
 });
 
 /**

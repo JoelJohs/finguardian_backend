@@ -8,6 +8,43 @@ import { Transaction } from '../entities/Transaction';
 const router = Router();
 const txRepo = () => AppDataSource.getRepository(Transaction);
 
+// Endpoint de prueba simple
+router.get('/test', auth, async (req: AuthRequest, res) => {
+    console.log('🔍 Test endpoint llamado por usuario:', req.userId);
+    try {
+        const count = await txRepo().count({ where: { user: { id: req.userId } } });
+        console.log('✅ Conteo de transacciones:', count);
+        res.json({
+            message: 'Endpoint de reportes funcionando',
+            userId: req.userId,
+            transactionCount: count
+        });
+    } catch (error) {
+        console.error('❌ Error en test endpoint:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
+});
+
+// Endpoint de prueba para verificar autenticación
+router.get('/test', auth, async (req: AuthRequest, res) => {
+    console.log('🧪 Test endpoint llamado, userId:', req.userId);
+
+    // Contar transacciones del usuario
+    const count = await txRepo()
+        .createQueryBuilder('t')
+        .where('t.userId = :userId', { userId: req.userId })
+        .getCount();
+
+    console.log('📊 Transacciones encontradas:', count);
+
+    res.json({
+        message: 'Endpoint funcionando',
+        userId: req.userId,
+        transactionCount: count,
+        timestamp: new Date().toISOString()
+    });
+});
+
 /**
  * @swagger
  * /api/reports/trend:
@@ -78,27 +115,42 @@ const txRepo = () => AppDataSource.getRepository(Transaction);
  */
 // GET /api/reports/trend?start=2024-07-01&end=2024-07-31
 router.get('/trend', auth, async (req: AuthRequest, res) => {
-    const { start, end } = req.query;
-    if (!start || !end) return res.status(400).json({ error: 'Faltan fechas' });
+    try {
+        const { start, end } = req.query;
+        console.log('🔍 Recibiendo request de tendencias:', { start, end, userId: req.userId });
 
-    const raw = await txRepo()
-        .createQueryBuilder('t')
-        .select("DATE_TRUNC('day', t.created_at)", 'day')
-        .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'income')
-        .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expense')
-        .where('t.userId = :userId', { userId: req.userId })
-        .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
-        .groupBy('day')
-        .orderBy('day')
-        .setParameters({ income: 'income', expense: 'expense' })
-        .getRawMany();
+        if (!start || !end) {
+            console.log('❌ Faltan parámetros de fecha');
+            return res.status(400).json({ error: 'Faltan fechas' });
+        }
 
-    const trend = raw.map(r => ({
-        date: r.day.split('T')[0],
-        income: parseFloat(r.income),
-        expense: parseFloat(r.expense),
-    }));
-    res.json(trend);
+        const raw = await txRepo()
+            .createQueryBuilder('t')
+            .select("DATE_TRUNC('day', t.created_at)", 'day')
+            .addSelect('SUM(CASE WHEN t.type = :income THEN t.amount ELSE 0 END)', 'income')
+            .addSelect('SUM(CASE WHEN t.type = :expense THEN t.amount ELSE 0 END)', 'expense')
+            .where('t.user = :userId', { userId: req.userId })
+            .andWhere('t.created_at BETWEEN :start AND :end', { start, end })
+            .groupBy('day')
+            .orderBy('day')
+            .setParameters({ income: 'income', expense: 'expense' })
+            .getRawMany();
+
+        console.log('📊 Datos raw de BD:', raw);
+
+        const trend = raw.map(r => ({
+            date: r.day.split('T')[0],
+            income: parseFloat(r.income),
+            expense: parseFloat(r.expense),
+            balance: parseFloat(r.income) - parseFloat(r.expense)
+        }));
+
+        console.log('✅ Tendencias procesadas:', trend);
+        res.json(trend);
+    } catch (error) {
+        console.error('❌ Error en endpoint de tendencias:', error);
+        res.status(500).json({ error: 'Error interno del servidor' });
+    }
 });
 
 /**

@@ -37,6 +37,9 @@ export class SavingsGoal {
   @Column({ nullable: true })
   completedAt?: Date;
 
+  @Column({ default: false })
+  isMoneyUsed!: boolean; // Nuevo campo para marcar si el dinero ya se utilizó
+
   @CreateDateColumn()
   created_at!: Date;
 }

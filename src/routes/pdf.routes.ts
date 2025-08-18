@@ -2,10 +2,12 @@ import { Router } from 'express';
 import { AppDataSource } from '../config/database';
 import { auth, AuthRequest } from '../middlewares/auth';
 import { Transaction } from '../entities/Transaction';
+import { User } from '../entities/User';
 import { buildTransactionPDF } from '../utils/pdfGenerator';
 
 const router = Router();
 const txRepo = () => AppDataSource.getRepository(Transaction);
+const userRepo = () => AppDataSource.getRepository(User);
 
 /**
  * @swagger
@@ -81,14 +83,27 @@ router.get('/pdf', auth, async (req: AuthRequest, res) => {
             .orderBy('t.created_at', 'DESC')
             .getMany();
 
-        console.log('📊 Datos encontrados para PDF:', data.length, 'transacciones');
+        // Obtener información del usuario
+        const user = await userRepo().findOne({
+            where: { id: req.userId! }
+        });
 
-        const doc = buildTransactionPDF(data, req.userId!, start as string, end as string);
+        const userName = user?.username || 'Usuario';
+
+        // Crear nombre de archivo personalizado
+        const safeUserName = userName.replace(/[^a-zA-Z0-9]/g, ''); // Remover caracteres especiales
+        const fileName = `report-${safeUserName}-finguardian-${start}-${end}.pdf`;
+
+        console.log('📊 Datos encontrados para PDF:', data.length, 'transacciones');
+        console.log('📄 Nombre de archivo:', fileName);
+
+        const doc = buildTransactionPDF(data, userName, start as string, end as string);
 
         console.log('✅ PDF generado exitosamente');
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename="fin-guardian-${start}-${end}.pdf"`);
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         doc.pipe(res);
+        doc.end();
     } catch (error) {
         console.error('❌ Error generando PDF:', error);
         res.status(500).json({ error: 'Error interno del servidor' });
